@@ -1,18 +1,17 @@
 package models
 
-type (
-	Pattern    []byte
-	MapPattern string
-)
-
-func (p Pattern) String() string {
-	return string(p)
+type Pattern struct {
+	value []byte
 }
 
-func NewMapPattern(p Pattern) MapPattern {
-	return MapPattern(p)
+func NewPattern(v []byte) *Pattern {
+	return &Pattern{value: v}
 }
 
-func (m MapPattern) Pattern() Pattern {
-	return Pattern(m)
+func (p *Pattern) String() string {
+	return string(p.value)
+}
+
+func (p *Pattern) Value() []byte {
+	return p.value
 }

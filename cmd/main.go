@@ -46,9 +46,7 @@ func main() {
 
 	l.Info("text loaded")
 
-	p := processor.NewProcessor(ctx, models.Alphabet(alphabetRaw))
-
-	patternsLocation := p.PatternsLocations(ctx, text)
-
-	l.Infof("found patterns locations: %v", patternsLocation)
+	p := processor.New(ctx)
+	p.AnalyzeAlphabet(ctx, models.Alphabet(alphabetRaw))
+	p.AnalyzeText(ctx, text)
 }
