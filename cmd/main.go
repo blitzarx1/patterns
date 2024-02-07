@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/boson-research/patterns/internal"
 	"github.com/boson-research/patterns/internal/models"
 	"github.com/boson-research/patterns/internal/processor"
 	"github.com/boson-research/patterns/internal/telemetry"
@@ -20,7 +21,7 @@ const (
 func main() {
 	ctx, closer, err := telemetry.Init(context.Background(), telemetry.Config{
 		Name:               "patterns",
-		Version:            "v0.1.1", // todo take from git tag + commit hash
+		Version:            internal.MustGetGitVersion(),
 		JaegerOTLPEndpoint: "jaeger:4318",
 	})
 	if err != nil {
