@@ -17,7 +17,7 @@ func InitLogger(ctx context.Context) context.Context {
 
 	logLevel, err := logrus.ParseLevel(logLevelRaw)
 	if err != nil {
-		logLevel = logrus.ErrorLevel
+		logLevel = logrus.InfoLevel
 	}
 
 	return InjectLogLevel(ctx, logLevel)

@@ -2,16 +2,16 @@ package processor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/boson-research/patterns/internal/models"
-	"github.com/boson-research/patterns/internal/models/neighbourhood"
+	"github.com/boson-research/patterns/internal/neighbourhood"
 	"github.com/boson-research/patterns/internal/telemetry/logger"
 	"go.opentelemetry.io/otel"
 )
 
 type Processor struct {
 	neighbourhoods []*neighbourhood.Neighbourhood
-	stats          map[*neighbourhood.Neighbourhood]*neighbourhood.Stat
 }
 
 func New(ctx context.Context) *Processor {
@@ -28,7 +28,7 @@ func (p *Processor) AnalyzeAlphabet(ctx context.Context, a models.Alphabet) {
 	centers := p.extractCenters(ctx, a)
 	p.neighbourhoods = p.extractNeighbourhoods(ctx, a, centers)
 
-	l.Debug("alphabet analyzed")
+	l.Infof("alphabet analyzed\n%s", p.neighbourhoods)
 }
 
 func (p *Processor) AnalyzeText(ctx context.Context, text []byte) {
@@ -38,24 +38,27 @@ func (p *Processor) AnalyzeText(ctx context.Context, text []byte) {
 
 	l.Debug("analyzing text")
 
-	p.stats = make(map[*neighbourhood.Neighbourhood]*neighbourhood.Stat, len(p.neighbourhoods)*2)
-	for it := range text {
-		for _, n := range p.neighbourhoods {
-			for _, pat := range n.Elements {
-				if checkPattern(pat, text, it) {
-					if stat, ok := p.stats[n]; !ok {
-						stat := neighbourhood.NewStat()
-						stat.Add(it, pat)
-						p.stats[n] = stat
-					} else {
-						stat.Add(it, pat)
-					}
-				}
-			}
-		}
+	// find patterns entries in text
+	for _, n := range p.neighbourhoods {
+		n.FindTextEntries(ctx, text)
 	}
 
-	l.Debugf("text analyzed: %v", p.stats)
+	// find neighbourhood clusters
+	for _, n := range p.neighbourhoods {
+		if len(n.TextEntries.Locations()) == 0 {
+			continue
+		}
+
+		n.Clusterize(ctx)
+	}
+
+	l.Info("text analyzed")
+	for _, n := range p.neighbourhoods {
+		if n.TextEntries == nil {
+			continue
+		}
+		fmt.Printf("%s", n)
+	}
 }
 
 func (p *Processor) extractCenters(ctx context.Context, a models.Alphabet) []*models.Pattern {
@@ -99,7 +102,7 @@ func (p *Processor) extractNeighbourhoods(ctx context.Context, a models.Alphabet
 	return neighbourhoods
 }
 
-func mergeStatsNeighbourhoods(a *neighbourhood.Stat, b *neighbourhood.Stat) *neighbourhood.Stat {
+func mergeStatsNeighbourhoods(a *neighbourhood.TextEntries, b *neighbourhood.TextEntries) *neighbourhood.TextEntries {
 	if a == nil && b == nil {
 		return nil
 	}
@@ -112,7 +115,7 @@ func mergeStatsNeighbourhoods(a *neighbourhood.Stat, b *neighbourhood.Stat) *nei
 		return a
 	}
 
-	res := neighbourhood.NewStatWithSize(len(a.Locations()) + len(b.Locations()))
+	res := neighbourhood.NewTextEntriesWithSize(len(a.Locations()) + len(b.Locations()))
 	ia, ib := 0, 0
 	for {
 		if ia == len(a.Locations()) {
@@ -133,18 +136,4 @@ func mergeStatsNeighbourhoods(a *neighbourhood.Stat, b *neighbourhood.Stat) *nei
 			ia++
 		}
 	}
-}
-
-func checkPattern(p *models.Pattern, text []byte, it int) bool {
-	for ip := range p.Value() {
-		if it+ip >= len(text) {
-			return false
-		}
-
-		if p.Value()[ip] != text[it+ip] {
-			return false
-		}
-	}
-
-	return true
 }
