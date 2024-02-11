@@ -13,8 +13,8 @@ func Test_calculateSilhouetteScore(t *testing.T) {
 		labels []int
 	}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		args    args
 		wantMin float64
 	}{
 		{
@@ -89,7 +89,7 @@ func TestKMeans(t *testing.T) {
 			name: "4 clusters different distance different sizes",
 			args: args{
 				ctx:  context.TODO(),
-				data: []float64{1, 2,3, 5, 6, 8, 9, 11, 12},
+				data: []float64{1, 2, 3, 5, 6, 8, 9, 11, 12},
 			},
 			wantLabelCountsSorted: []int{2, 2, 2, 3},
 		},
