@@ -3,7 +3,6 @@ package neighbourhood
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/boson-research/patterns/internal/cluster/kmeans"
@@ -67,8 +66,7 @@ func (n *Neighbourhood) Clusterize(ctx context.Context) {
 	clusterInput := lo.Map(n.TextEntries.Locations(), func(loc int, _ int) float64 {
 		return float64(loc)
 	})
-	// TODO: silhoutte
-	centroids, labels := kmeans.KMeans(ctx, clusterInput, int(math.Min(float64(len(clusterInput)), 2)), 100)
+	centroids, labels := kmeans.KMeans(ctx, clusterInput)
 	for label, centroid := range centroids {
 		entries := make([]*TextEntry, 0, len(labels))
 

@@ -28,7 +28,7 @@ func (p *Processor) AnalyzeAlphabet(ctx context.Context, a models.Alphabet) {
 	centers := p.extractCenters(ctx, a)
 	p.neighbourhoods = p.extractNeighbourhoods(ctx, a, centers)
 
-	l.Infof("alphabet analyzed\n%s", p.neighbourhoods)
+	l.Debugf("alphabet analyzed\n%s", p.neighbourhoods)
 }
 
 func (p *Processor) AnalyzeText(ctx context.Context, text []byte) {
@@ -38,19 +38,8 @@ func (p *Processor) AnalyzeText(ctx context.Context, text []byte) {
 
 	l.Debug("analyzing text")
 
-	// find patterns entries in text
-	for _, n := range p.neighbourhoods {
-		n.FindTextEntries(ctx, text)
-	}
-
-	// find neighbourhood clusters
-	for _, n := range p.neighbourhoods {
-		if len(n.TextEntries.Locations()) == 0 {
-			continue
-		}
-
-		n.Clusterize(ctx)
-	}
+	p.findTextEntries(ctx, text)
+	p.clusterize(ctx)
 
 	l.Info("text analyzed")
 	for _, n := range p.neighbourhoods {
@@ -58,6 +47,34 @@ func (p *Processor) AnalyzeText(ctx context.Context, text []byte) {
 			continue
 		}
 		fmt.Printf("%s", n)
+	}
+}
+
+func (p *Processor) clusterize(ctx context.Context) {
+	ctx, span := otel.Tracer("processor").Start(ctx, "clusterize")
+	defer span.End()
+	l := logger.Logger(ctx)
+
+	l.Debug("clusterizing")
+
+	for _, n := range p.neighbourhoods {
+		if len(n.TextEntries.Locations()) == 0 {
+			continue
+		}
+
+		n.Clusterize(ctx)
+	}
+}
+
+func (p *Processor) findTextEntries(ctx context.Context, text []byte) {
+	ctx, span := otel.Tracer("processor").Start(ctx, "findTextEntries")
+	defer span.End()
+	l := logger.Logger(ctx)
+
+	l.Debug("finding text entries")
+
+	for _, n := range p.neighbourhoods {
+		n.FindTextEntries(ctx, text)
 	}
 }
 
