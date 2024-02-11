@@ -163,6 +163,8 @@ func KMeans(ctx context.Context, data []float64) ([]float64, []int) {
 			bestLabels = labels
 			bestK = k
 		}
+
+		l.Tracef("silhouette score for %d clusters: %f", k, silhouetteScore)
 	}
 
 	l.Debugf("found optimal number of clusters: %d", bestK)

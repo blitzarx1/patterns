@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/boson-research/patterns/internal/models"
+	"github.com/boson-research/patterns/internal/alphabet"
 	"github.com/boson-research/patterns/internal/neighbourhood"
 	"github.com/boson-research/patterns/internal/telemetry/logger"
 	"go.opentelemetry.io/otel"
@@ -18,7 +18,7 @@ func New(ctx context.Context) *Processor {
 	return &Processor{}
 }
 
-func (p *Processor) AnalyzeAlphabet(ctx context.Context, a models.Alphabet) {
+func (p *Processor) AnalyzeAlphabet(ctx context.Context, a alphabet.Alphabet) {
 	ctx, span := otel.Tracer("processor").Start(ctx, "AnalyzeAlphabet")
 	defer span.End()
 	l := logger.Logger(ctx)
@@ -78,17 +78,17 @@ func (p *Processor) findTextEntries(ctx context.Context, text []byte) {
 	}
 }
 
-func (p *Processor) extractCenters(ctx context.Context, a models.Alphabet) []*models.Pattern {
+func (p *Processor) extractCenters(ctx context.Context, a alphabet.Alphabet) []*alphabet.Pattern {
 	ctx, span := otel.Tracer("processor").Start(ctx, "extractCenters")
 	defer span.End()
 	l := logger.Logger(ctx)
 
 	l.Debug("extracting centers")
 
-	centers := make([]*models.Pattern, 0, len(a))
+	centers := make([]*alphabet.Pattern, 0, len(a))
 	for _, s1 := range a {
 		for _, s2 := range a {
-			centers = append(centers, models.NewPattern([]byte{s2, s1, s1}))
+			centers = append(centers, alphabet.NewPattern([]byte{s2, s1, s1}))
 		}
 	}
 
@@ -97,7 +97,7 @@ func (p *Processor) extractCenters(ctx context.Context, a models.Alphabet) []*mo
 	return centers
 }
 
-func (p *Processor) extractNeighbourhoods(ctx context.Context, a models.Alphabet, c []*models.Pattern) []*neighbourhood.Neighbourhood {
+func (p *Processor) extractNeighbourhoods(ctx context.Context, a alphabet.Alphabet, c []*alphabet.Pattern) []*neighbourhood.Neighbourhood {
 	ctx, span := otel.Tracer("processor").Start(ctx, "extractNeighbourhoods")
 	defer span.End()
 	l := logger.Logger(ctx)
@@ -106,9 +106,9 @@ func (p *Processor) extractNeighbourhoods(ctx context.Context, a models.Alphabet
 
 	neighbourhoods := make([]*neighbourhood.Neighbourhood, 0, len(c))
 	for _, center := range c {
-		var elements []*models.Pattern
+		var elements []*alphabet.Pattern
 		for _, symbol := range a {
-			elements = append(elements, models.NewPattern([]byte{center.Value()[0], symbol, center.Value()[2]}))
+			elements = append(elements, alphabet.NewPattern([]byte{center.Value()[0], symbol, center.Value()[2]}))
 		}
 
 		neighbourhoods = append(neighbourhoods, neighbourhood.New(center).WithElements(elements))

@@ -6,26 +6,26 @@ import (
 	"strings"
 
 	"github.com/boson-research/patterns/internal/cluster/kmeans"
-	"github.com/boson-research/patterns/internal/models"
+	"github.com/boson-research/patterns/internal/alphabet"
 	"github.com/boson-research/patterns/internal/telemetry/logger"
 	"github.com/samber/lo"
 	"go.opentelemetry.io/otel"
 )
 
 type Neighbourhood struct {
-	Center      *models.Pattern
-	Elements    []*models.Pattern
+	Center      *alphabet.Pattern
+	Elements    []*alphabet.Pattern
 	TextEntries *TextEntries
 	Clusters    []*Cluster
 }
 
-func New(c *models.Pattern) *Neighbourhood {
+func New(c *alphabet.Pattern) *Neighbourhood {
 	return &Neighbourhood{
 		Center: c,
 	}
 }
 
-func (n *Neighbourhood) WithElements(elements []*models.Pattern) *Neighbourhood {
+func (n *Neighbourhood) WithElements(elements []*alphabet.Pattern) *Neighbourhood {
 	n.Elements = elements
 	return n
 }
@@ -83,7 +83,7 @@ func (n *Neighbourhood) Clusterize(ctx context.Context) {
 	}
 }
 
-func checkPattern(p *models.Pattern, text []byte, it int) bool {
+func checkPattern(p *alphabet.Pattern, text []byte, it int) bool {
 	for ip := range p.Value() {
 		if it+ip >= len(text) {
 			return false

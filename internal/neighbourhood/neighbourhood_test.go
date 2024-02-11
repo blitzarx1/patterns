@@ -3,12 +3,12 @@ package neighbourhood
 import (
 	"testing"
 
-	"github.com/boson-research/patterns/internal/models"
+	"github.com/boson-research/patterns/internal/alphabet"
 )
 
 func Test_checkPattern(t *testing.T) {
 	type args struct {
-		pattern *models.Pattern
+		pattern *alphabet.Pattern
 		text    []byte
 		it      int
 	}
@@ -20,7 +20,7 @@ func Test_checkPattern(t *testing.T) {
 		{
 			name: "out of bounds",
 			args: args{
-				pattern: models.NewPattern([]byte{'a', 'a', 'a'}),
+				pattern: alphabet.NewPattern([]byte{'a', 'a', 'a'}),
 				text:    []byte("a"),
 				it:      0,
 			},
@@ -29,7 +29,7 @@ func Test_checkPattern(t *testing.T) {
 		{
 			name: "out of bounds 2",
 			args: args{
-				pattern: models.NewPattern([]byte{'a', 'a', 'a'}),
+				pattern: alphabet.NewPattern([]byte{'a', 'a', 'a'}),
 				text:    []byte("aaa"),
 				it:      1,
 			},
@@ -38,7 +38,7 @@ func Test_checkPattern(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				pattern: models.NewPattern([]byte{'a', 'b', 'c'}),
+				pattern: alphabet.NewPattern([]byte{'a', 'b', 'c'}),
 				text:    []byte("dabc"),
 				it:      1,
 			},
@@ -47,7 +47,7 @@ func Test_checkPattern(t *testing.T) {
 		{
 			name: "fail",
 			args: args{
-				pattern: models.NewPattern([]byte{'a', 'b', 'c'}),
+				pattern: alphabet.NewPattern([]byte{'a', 'b', 'c'}),
 				text:    []byte("dabc"),
 				it:      0,
 			},

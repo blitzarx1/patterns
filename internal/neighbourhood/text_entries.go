@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/boson-research/patterns/internal/models"
+	"github.com/boson-research/patterns/internal/alphabet"
 	"github.com/samber/lo"
 )
 
 type TextEntry struct {
 	loc     int
-	pattern *models.Pattern
+	pattern *alphabet.Pattern
 }
 
 func (te *TextEntry) Loc() int {
 	return te.loc
 }
 
-func (te *TextEntry) Pattern() *models.Pattern {
+func (te *TextEntry) Pattern() *alphabet.Pattern {
 	return te.pattern
 }
 
@@ -27,7 +27,7 @@ func (te *TextEntry) String() string {
 
 type TextEntries struct {
 	locations []int
-	patterns  []*models.Pattern
+	patterns  []*alphabet.Pattern
 }
 
 func NewTextEntries() *TextEntries {
@@ -37,16 +37,16 @@ func NewTextEntries() *TextEntries {
 func NewTextEntriesWithSize(size int) *TextEntries {
 	return &TextEntries{
 		locations: make([]int, 0, size),
-		patterns:  make([]*models.Pattern, 0, size),
+		patterns:  make([]*alphabet.Pattern, 0, size),
 	}
 }
 
-func (te *TextEntries) Add(loc int, pat *models.Pattern) {
+func (te *TextEntries) Add(loc int, pat *alphabet.Pattern) {
 	te.locations = append(te.locations, loc)
 	te.patterns = append(te.patterns, pat)
 }
 
-func (te *TextEntries) AddMany(locs []int, pats []*models.Pattern) {
+func (te *TextEntries) AddMany(locs []int, pats []*alphabet.Pattern) {
 	te.locations = append(te.locations, locs...)
 	te.patterns = append(te.patterns, pats...)
 }
@@ -59,7 +59,7 @@ func (te *TextEntries) Locations() []int {
 	return te.locations
 }
 
-func (te *TextEntries) Patterns() []*models.Pattern {
+func (te *TextEntries) Patterns() []*alphabet.Pattern {
 	if te == nil {
 		return nil
 	}

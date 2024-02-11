@@ -1,4 +1,4 @@
-package models
+package alphabet
 
 type Pattern struct {
 	value []byte

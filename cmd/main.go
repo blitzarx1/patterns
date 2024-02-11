@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/boson-research/patterns/internal"
-	"github.com/boson-research/patterns/internal/models"
+	"github.com/boson-research/patterns/internal/alphabet"
 	"github.com/boson-research/patterns/internal/processor"
 	"github.com/boson-research/patterns/internal/telemetry"
 	"github.com/boson-research/patterns/internal/telemetry/logger"
@@ -48,6 +48,6 @@ func main() {
 	l.Info("text loaded")
 
 	p := processor.New(ctx)
-	p.AnalyzeAlphabet(ctx, models.Alphabet(alphabetRaw))
+	p.AnalyzeAlphabet(ctx, alphabet.Alphabet(alphabetRaw))
 	p.AnalyzeText(ctx, text)
 }
