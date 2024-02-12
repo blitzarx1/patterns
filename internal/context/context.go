@@ -38,7 +38,7 @@ func (c *PatternContext) WithLogger(l *logrus.Logger) Context {
 func (c *PatternContext) Logger() *logrus.Entry {
 	l, ok := c.Value(ctxKeyLogger).(*logrus.Logger)
 	if !ok {
-		panic("logger not found in context")
+		return logrus.New().WithContext(c)
 	}
 
 	return l.WithContext(c)
