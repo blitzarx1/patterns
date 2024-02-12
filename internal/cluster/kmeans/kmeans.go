@@ -1,12 +1,11 @@
 package kmeans
 
 import (
-	"context"
+	"fmt"
 	"math"
 	"math/rand"
 
-	"github.com/boson-research/patterns/internal/telemetry/logger"
-	"go.opentelemetry.io/otel"
+	"github.com/boson-research/patterns/internal/context"
 )
 
 // initializeCentroids selects k unique random points from the data as the initial centroids.
@@ -106,7 +105,7 @@ func checkConvergence(oldCentroids, newCentroids []float64, threshold float64) b
 
 func calcAvgDistOwn(p float64, cluster []float64) float64 {
 	if len(cluster) == 1 {
-		return 0.5
+		return 0.0
 	}
 
 	sumDistance := 0.0
@@ -162,37 +161,36 @@ func calculateSilhouetteScore(data []float64, labels []int) float64 {
 }
 
 func kmeans(ctx context.Context, data []float64, k int, maxIterations int) ([]float64, []int) {
-	ctx, span := otel.Tracer("kmeans").Start(ctx, "kmeans")
+	ctx, span := ctx.StartSpan("kmeans")
 	defer span.End()
-	l := logger.Logger(ctx)
 
-	l.Tracef("clustering %d points into %d clusters", len(data), k)
+	ctx.Logger().Tracef("clustering %d points into %d clusters", len(data), k)
 
 	centroids := initializeCentroidsKMeansPlusPlus(data, k)
 	for i := 0; i < maxIterations; i++ {
 		labels := assignPointsToCentroids(data, centroids)
 		newCentroids := updateCentroids(data, labels, k)
 		if checkConvergence(centroids, newCentroids, 1e-5) {
-			l.Tracef("converged after %d iterations", i+1)
+			ctx.Logger().Tracef("converged after %d iterations", i+1)
 
 			return newCentroids, labels
 		}
 
 		centroids = newCentroids
 	}
+
 	return centroids, assignPointsToCentroids(data, centroids)
 }
 
 // KMeans performs 1D k-means clustering with refactored helper functions.
 func KMeans(ctx context.Context, data []float64) ([]float64, []int) {
-	ctx, span := otel.Tracer("kmeans").Start(ctx, "KMeans")
+	ctx, span := ctx.StartSpan("KMeans")
 	defer span.End()
-	l := logger.Logger(ctx)
 
-	l.Debug("clustering")
+	ctx.Logger().Debug("clustering")
 
 	if len(data) == 1 {
-		l.Debug("skipping silhouete optimization for number of clusters")
+		ctx.Logger().Debug("skipping silhouete optimization for number of clusters")
 
 		return kmeans(ctx, data, 1, 100)
 	}
@@ -202,10 +200,18 @@ func KMeans(ctx context.Context, data []float64) ([]float64, []int) {
 	var bestK int
 	bestSilhouetteScore := math.Inf(-1)
 
-	maxClusters := len(data) - 1
-	for k := 2; k <= maxClusters; k++ {
+	// TODO: silhoette threshold
+	// TODO: elbow method and others (check book)
+
+	// TODO: test 2 - 2 clusters, should be 1
+	// TODO: test 7 - noise handling
+
+	maxClusters := len(data) / 2
+	for k := 1; k <= maxClusters; k++ {
 		centroids, labels := kmeans(ctx, data, k, 100)
 		silhouetteScore := calculateSilhouetteScore(data, labels)
+
+		fmt.Println("silhouette score for", k, "clusters:", silhouetteScore)
 
 		if silhouetteScore > bestSilhouetteScore {
 			bestSilhouetteScore = silhouetteScore
@@ -214,10 +220,10 @@ func KMeans(ctx context.Context, data []float64) ([]float64, []int) {
 			bestK = k
 		}
 
-		l.Tracef("silhouette score for %d clusters: %f", k, silhouetteScore)
+		ctx.Logger().Tracef("silhouette score for %d clusters: %f", k, silhouetteScore)
 	}
 
-	l.Debugf("found optimal number of clusters: %d", bestK)
+	ctx.Logger().Debugf("found optimal number of clusters: %d", bestK)
 
 	return bestCentroids, bestLabels
 }

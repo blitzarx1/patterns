@@ -1,18 +1,20 @@
 package logger
 
 import (
-	"context"
 	"os"
 
+	"github.com/boson-research/patterns/internal/context"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const logLevelEnv = "LOG_LEVEL"
+const (
+	logLevelEnv = "LOG_LEVEL"
+)
 
-func InitLogger(ctx context.Context) context.Context {
+func MustCreate(ctx context.Context) context.Context {
 	logLevelRaw := os.Getenv(logLevelEnv)
 
 	logLevel, err := logrus.ParseLevel(logLevelRaw)
@@ -20,26 +22,17 @@ func InitLogger(ctx context.Context) context.Context {
 		logLevel = logrus.InfoLevel
 	}
 
-	return InjectLogLevel(ctx, logLevel)
-}
-
-func Logger(ctx context.Context) *logrus.Entry {
 	l := logrus.New()
-	l.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05.00000",
-	})
 
-	l.SetLevel(LogLevel(ctx))
-
+	l.SetLevel(logLevel)
 	l.AddHook(logrusTraceHook{})
 
-	return l.WithContext(ctx)
+	return ctx.WithLogger(l)
 }
 
-// logrusTraceHook is a hook that;
-// (a) adds TraceIds & spanIds to logs of all LogLevels
-// (b) adds logs to the active span as events.
+// logrusTraceHook is an implementation of logrus.Hook that:
+// (1) adds TraceIds & spanIds to logs of all LogLevels
+// (2) adds logs to the active span as events
 type logrusTraceHook struct{}
 
 func (t logrusTraceHook) Levels() []logrus.Level { return logrus.AllLevels }

@@ -1,15 +1,14 @@
 package neighbourhood
 
 import (
-	"context"
 	"fmt"
+	"sort"
 	"strings"
 
-	"github.com/boson-research/patterns/internal/cluster/kmeans"
 	"github.com/boson-research/patterns/internal/alphabet"
-	"github.com/boson-research/patterns/internal/telemetry/logger"
+	"github.com/boson-research/patterns/internal/cluster/kmeans"
+	"github.com/boson-research/patterns/internal/context"
 	"github.com/samber/lo"
-	"go.opentelemetry.io/otel"
 )
 
 type Neighbourhood struct {
@@ -31,16 +30,16 @@ func (n *Neighbourhood) WithElements(elements []*alphabet.Pattern) *Neighbourhoo
 }
 
 func (n *Neighbourhood) FindTextEntries(ctx context.Context, text []byte) {
-	ctx, span := otel.Tracer("neighbourhood").Start(ctx, "FindTextEntries")
+	ctx, span := ctx.StartSpan("FindTextEntries")
 	defer span.End()
-	l := logger.Logger(ctx)
 
-	l.Debugf("finding entries in text for %s", n)
+	ctx.Logger().Debugf("finding entries in text for %s", n)
 
 	for it := range text {
 		for _, pat := range n.Elements {
 			if checkPattern(pat, text, it) {
-				l.Tracef("adding entry %s at index %d", pat, it)
+				ctx.Logger().Tracef("adding entry %s at index %d", pat, it)
+
 				if n.TextEntries == nil {
 					n.TextEntries = NewTextEntries()
 				}
@@ -52,11 +51,10 @@ func (n *Neighbourhood) FindTextEntries(ctx context.Context, text []byte) {
 }
 
 func (n *Neighbourhood) Clusterize(ctx context.Context) {
-	ctx, span := otel.Tracer("neighbourhood").Start(ctx, "Cluterize")
+	ctx, span := ctx.StartSpan("Clusterize")
 	defer span.End()
-	l := logger.Logger(ctx)
 
-	l.Debugf("clusterizing %s", n)
+	ctx.Logger().Debugf("clusterizing %s", n)
 
 	entryByLoc := make(map[int]*TextEntry, len(n.TextEntries.Locations()))
 	for i, loc := range n.TextEntries.Locations() {
@@ -66,6 +64,8 @@ func (n *Neighbourhood) Clusterize(ctx context.Context) {
 	clusterInput := lo.Map(n.TextEntries.Locations(), func(loc int, _ int) float64 {
 		return float64(loc)
 	})
+
+	fmt.Printf("computing kmeans for neighbourhood with center: %s\n", n.Center)
 	centroids, labels := kmeans.KMeans(ctx, clusterInput)
 	for label, centroid := range centroids {
 		entries := make([]*TextEntry, 0, len(labels))
@@ -81,6 +81,11 @@ func (n *Neighbourhood) Clusterize(ctx context.Context) {
 			entries: entries,
 		})
 	}
+
+	// sort clusters by center
+	sort.Slice(n.Clusters, func(i, j int) bool {
+		return n.Clusters[i].center < n.Clusters[j].center
+	})
 }
 
 func checkPattern(p *alphabet.Pattern, text []byte, it int) bool {
@@ -100,7 +105,7 @@ func checkPattern(p *alphabet.Pattern, text []byte, it int) bool {
 func (n *Neighbourhood) String() string {
 	b := strings.Builder{}
 
-	b.WriteString(fmt.Sprintf("\nneighbourhood{%s}", n.Center))
+	b.WriteString(fmt.Sprintf("neighbourhood{%s}", n.Center))
 
 	if n.TextEntries != nil {
 		b.WriteString(fmt.Sprintf("\ntext entries %d:\n%s", len(n.TextEntries.locations), n.TextEntries))

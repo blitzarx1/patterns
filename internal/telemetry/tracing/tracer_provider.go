@@ -1,7 +1,7 @@
 package tracing
 
 import (
-	"context"
+	pkgContext "context"
 	"time"
 
 	"go.opentelemetry.io/contrib/propagators/jaeger"
@@ -12,6 +12,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
+
+	"github.com/boson-research/patterns/internal/context"
 )
 
 // InitTracerProvider creates and globally registers new tracer provider. To use it, call otel.GetTracerProvider().
@@ -21,7 +23,7 @@ func InitTracerProvider(
 	serviceVersion string,
 	agentEndpoint string,
 	batchTimeout time.Duration,
-) (func(context.Context) error, error) {
+) (func(pkgContext.Context) error, error) {
 	exporter, err := newExporter(ctx, agentEndpoint)
 	if err != nil {
 		return nil, err

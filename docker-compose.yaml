@@ -11,6 +11,6 @@ services:
   patterns:
     build: .
     environment:
-      - LOG_LEVEL=trace
+      - LOG_LEVEL=debug
     depends_on:
       - jaeger

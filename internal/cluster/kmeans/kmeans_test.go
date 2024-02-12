@@ -1,11 +1,14 @@
 package kmeans
 
 import (
-	"context"
+	pkgContext "context"
+	"github.com/boson-research/patterns/internal/context"
 	"reflect"
 	"slices"
 	"testing"
 )
+
+var ctx = context.New(pkgContext.Background())
 
 func Test_calculateSilhouetteScore(t *testing.T) {
 	type args struct {
@@ -36,6 +39,7 @@ func Test_calculateSilhouetteScore(t *testing.T) {
 }
 
 func TestKMeans(t *testing.T) {
+
 	type args struct {
 		ctx  context.Context
 		data []float64
@@ -48,7 +52,7 @@ func TestKMeans(t *testing.T) {
 		{
 			name: "1 cluster 1 element",
 			args: args{
-				ctx:  context.TODO(),
+				ctx:  ctx,
 				data: []float64{1},
 			},
 			wantLabelCountsSorted: []int{1},
@@ -56,7 +60,7 @@ func TestKMeans(t *testing.T) {
 		{
 			name: "2 clusters 1 distance",
 			args: args{
-				ctx:  context.TODO(),
+				ctx:  ctx,
 				data: []float64{1, 2, 3, 5, 6, 7},
 			},
 			wantLabelCountsSorted: []int{3, 3},
@@ -64,7 +68,7 @@ func TestKMeans(t *testing.T) {
 		{
 			name: "2 clusters 2 distance different sizes",
 			args: args{
-				ctx:  context.TODO(),
+				ctx:  ctx,
 				data: []float64{1, 2, 3, 6, 7},
 			},
 			wantLabelCountsSorted: []int{2, 3},
@@ -72,7 +76,7 @@ func TestKMeans(t *testing.T) {
 		{
 			name: "2 clusters 3 distance different sizes",
 			args: args{
-				ctx:  context.TODO(),
+				ctx:  ctx,
 				data: []float64{1, 2, 3, 7, 8},
 			},
 			wantLabelCountsSorted: []int{2, 3},
@@ -80,7 +84,7 @@ func TestKMeans(t *testing.T) {
 		{
 			name: "3 clusters 1 distance",
 			args: args{
-				ctx:  context.TODO(),
+				ctx:  ctx,
 				data: []float64{1, 2, 3, 5, 6, 7, 9, 10, 11},
 			},
 			wantLabelCountsSorted: []int{3, 3, 3},
@@ -88,7 +92,7 @@ func TestKMeans(t *testing.T) {
 		{
 			name: "4 clusters different distance different sizes",
 			args: args{
-				ctx:  context.TODO(),
+				ctx:  ctx,
 				data: []float64{1, 2, 3, 5, 6, 8, 9, 11, 12},
 			},
 			wantLabelCountsSorted: []int{2, 2, 2, 3},
