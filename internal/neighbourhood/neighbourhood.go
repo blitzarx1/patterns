@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/boson-research/patterns/internal/alphabet"
-	"github.com/boson-research/patterns/internal/cluster/kmeans"
+	"github.com/boson-research/patterns/internal/cluster"
 	"github.com/boson-research/patterns/internal/context"
 	"github.com/samber/lo"
 )
@@ -66,7 +66,7 @@ func (n *Neighbourhood) Clusterize(ctx context.Context) {
 	})
 
 	fmt.Printf("computing kmeans for neighbourhood with center: %s\n", n.Center)
-	centroids, labels := kmeans.KMeans(ctx, clusterInput)
+	centroids, labels := cluster.New(cluster.Silhouette).Clusterize(ctx, clusterInput)
 	for label, centroid := range centroids {
 		entries := make([]*TextEntry, 0, len(labels))
 

@@ -17,17 +17,15 @@ type Config struct {
 }
 
 func Init(ctx context.Context, cfg Config) (context.Context, func(ctx pkgContext.Context) error, error) {
-	var closer func(pkgContext.Context) error
-	var err error
 	if cfg.JaegerOTLPEndpoint == "" {
-		closer = func(_ pkgContext.Context) error {
+		return ctx, func(_ pkgContext.Context) error {
 			return nil
-		}
-	} else {
-		closer, err = tracing.InitTracerProvider(ctx, cfg.Name, cfg.Version, cfg.JaegerOTLPEndpoint, time.Second)
-		if err != nil {
-			return nil, nil, fmt.Errorf("initialize tracing: %w", err)
-		}
+		}, nil
+	}
+
+	closer, err := tracing.InitTracerProvider(ctx, cfg.Name, cfg.Version, cfg.JaegerOTLPEndpoint, time.Second)
+	if err != nil {
+		return nil, nil, fmt.Errorf("initialize tracing: %w", err)
 	}
 
 	return logger.MustCreate(ctx), closer, nil

@@ -1,64 +1,45 @@
 package kmeans
 
 import (
-	"fmt"
 	"math"
-	"math/rand"
 
 	"github.com/boson-research/patterns/internal/context"
 )
 
-// initializeCentroids selects k unique random points from the data as the initial centroids.
-func initializeCentroids(data []float64, k int) []float64 {
-	centroids := make([]float64, k)
-	perm := rand.Perm(len(data))
-	for i := 0; i < k; i++ {
-		centroids[i] = data[perm[i]]
+func New(clustersNum int, maxIterations int, centroidsIniter CentroidsIniterType) *KMeans {
+	return &KMeans{
+		clustersNum:     clustersNum,
+		maxIterations:   maxIterations,
+		centroidsIniter: getCentroidsIniter(centroidsIniter),
 	}
-	return centroids
 }
 
-// initializeCentroidsKMeansPlusPlus selects k unique centroids using the k-means++ algorithm.
-func initializeCentroidsKMeansPlusPlus(data []float64, k int) []float64 {
-	if len(data) == 0 || k <= 0 {
-		return nil // Handle edge cases
-	}
+type KMeans struct {
+	clustersNum     int
+	maxIterations   int
+	centroidsIniter centroidsIniter
+}
 
-	centroids := make([]float64, 0, k)
-	// Randomly select the first centroid from the data points.
-	firstCentroidIndex := rand.Intn(len(data))
-	centroids = append(centroids, data[firstCentroidIndex])
+func (k *KMeans) Cluster(ctx context.Context, data []float64) ([]float64, []int) {
+	ctx, span := ctx.StartSpan("KMeans")
+	defer span.End()
 
-	// Repeat until we have k centroids
-	for len(centroids) < k {
-		distances := make([]float64, len(data))
-		totalDistance := 0.0
+	ctx.Logger().Tracef("clustering %d points into %d clusters", len(data), k.clustersNum)
 
-		// For each data point, compute the distance to the nearest centroid
-		for i, point := range data {
-			minDist := math.Inf(1)
-			for _, centroid := range centroids {
-				dist := math.Abs(point - centroid)
-				if dist < minDist {
-					minDist = dist
-				}
-			}
-			distances[i] = minDist * minDist // Square the distance to increase probability for farther points
-			totalDistance += distances[i]
+	centroids := k.centroidsIniter(data, k.clustersNum)
+	for i := 0; i < k.maxIterations; i++ {
+		labels := assignPointsToCentroids(data, centroids)
+		newCentroids := updateCentroids(data, labels, k.clustersNum)
+		if checkConvergence(centroids, newCentroids, 1e-5) {
+			ctx.Logger().Tracef("converged after %d iterations", i+1)
+
+			return newCentroids, labels
 		}
 
-		// Select the next centroid
-		randomPoint := rand.Float64() * totalDistance
-		for i, d := range distances {
-			randomPoint -= d
-			if randomPoint <= 0 {
-				centroids = append(centroids, data[i])
-				break
-			}
-		}
+		centroids = newCentroids
 	}
 
-	return centroids
+	return centroids, assignPointsToCentroids(data, centroids)
 }
 
 // assignPointsToCentroids assigns each data point to the nearest centroid and returns the labels.
@@ -103,127 +84,3 @@ func checkConvergence(oldCentroids, newCentroids []float64, threshold float64) b
 	return true
 }
 
-func calcAvgDistOwn(p float64, cluster []float64) float64 {
-	if len(cluster) == 1 {
-		return 0.0
-	}
-
-	sumDistance := 0.0
-	for _, otherPoint := range cluster {
-		sumDistance += math.Abs(p - otherPoint)
-	}
-
-	return sumDistance / float64(len(cluster)-1)
-}
-
-func calcAvgDistOther(p float64, cluster []float64) float64 {
-	sumDistance := 0.0
-	for _, otherPoint := range cluster {
-		sumDistance += math.Abs(p - otherPoint)
-	}
-
-	return sumDistance / float64(len(cluster))
-}
-
-// calculateSilhouetteScore calculates the silhouette score for each point and returns the average score.
-func calculateSilhouetteScore(data []float64, labels []int) float64 {
-	// create clusters from labels
-	clusters := make(map[int][]float64)
-	for i, label := range labels {
-		clusters[label] = append(clusters[label], data[i])
-	}
-
-	totalScore := 0.0
-	for i, point := range data {
-		// calculate a(i)
-		a := calcAvgDistOwn(point, clusters[labels[i]])
-
-		// calculate b(i)
-		b := math.Inf(1)
-		for label, cluster := range clusters {
-			if label == labels[i] {
-				continue // skip own cluster
-			}
-
-			dist := calcAvgDistOther(point, cluster)
-			if dist < b {
-				b = dist
-			}
-		}
-
-		// calculate silhouette score for point i
-		si := (b - a) / math.Max(a, b)
-		totalScore += si
-	}
-
-	// return average silhouette score
-	return totalScore / float64(len(data))
-}
-
-func kmeans(ctx context.Context, data []float64, k int, maxIterations int) ([]float64, []int) {
-	ctx, span := ctx.StartSpan("kmeans")
-	defer span.End()
-
-	ctx.Logger().Tracef("clustering %d points into %d clusters", len(data), k)
-
-	centroids := initializeCentroidsKMeansPlusPlus(data, k)
-	for i := 0; i < maxIterations; i++ {
-		labels := assignPointsToCentroids(data, centroids)
-		newCentroids := updateCentroids(data, labels, k)
-		if checkConvergence(centroids, newCentroids, 1e-5) {
-			ctx.Logger().Tracef("converged after %d iterations", i+1)
-
-			return newCentroids, labels
-		}
-
-		centroids = newCentroids
-	}
-
-	return centroids, assignPointsToCentroids(data, centroids)
-}
-
-// KMeans performs 1D k-means clustering with refactored helper functions.
-func KMeans(ctx context.Context, data []float64) ([]float64, []int) {
-	ctx, span := ctx.StartSpan("KMeans")
-	defer span.End()
-
-	ctx.Logger().Debug("clustering")
-
-	if len(data) == 1 {
-		ctx.Logger().Debug("skipping silhouete optimization for number of clusters")
-
-		return kmeans(ctx, data, 1, 100)
-	}
-
-	var bestCentroids []float64
-	var bestLabels []int
-	var bestK int
-	bestSilhouetteScore := math.Inf(-1)
-
-	// TODO: silhoette threshold
-	// TODO: elbow method and others (check book)
-
-	// TODO: test 2 - 2 clusters, should be 1
-	// TODO: test 7 - noise handling
-
-	maxClusters := len(data) / 2
-	for k := 1; k <= maxClusters; k++ {
-		centroids, labels := kmeans(ctx, data, k, 100)
-		silhouetteScore := calculateSilhouetteScore(data, labels)
-
-		fmt.Println("silhouette score for", k, "clusters:", silhouetteScore)
-
-		if silhouetteScore > bestSilhouetteScore {
-			bestSilhouetteScore = silhouetteScore
-			bestCentroids = centroids
-			bestLabels = labels
-			bestK = k
-		}
-
-		ctx.Logger().Tracef("silhouette score for %d clusters: %f", k, silhouetteScore)
-	}
-
-	ctx.Logger().Debugf("found optimal number of clusters: %d", bestK)
-
-	return bestCentroids, bestLabels
-}

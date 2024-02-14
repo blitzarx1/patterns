@@ -45,6 +45,6 @@ func (c *PatternContext) Logger() *logrus.Entry {
 }
 
 func (c *PatternContext) StartSpan(name string) (Context, trace.Span) {
-	ctx, span := otel.Tracer("pattern").Start(c.Context, name)
+	ctx, span := otel.Tracer("").Start(c.Context, name)
 	return New(ctx), span
 }
