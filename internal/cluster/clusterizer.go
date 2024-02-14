@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/boson-research/patterns/internal/cluster/kmeans"
 	"github.com/boson-research/patterns/internal/context"
 )
 
@@ -13,15 +12,15 @@ type Clusterizer struct {
 	qualityEstimator qualityEstimator
 }
 
-func New(qualityEstimator QualityEstimationMethod) *Clusterizer {
+func New(clusterer ClustererType, qualityEstimator QualityEstimationMethod) *Clusterizer {
 	return &Clusterizer{
-		// change for cluster builder with explicit parameter/s for optimization
-		clusterer:        kmeans.New(1, 100, kmeans.RandomCentroidsIniter),
+		clusterer:        getClusterer(clusterer),
 		qualityEstimator: getQualityEstimator(qualityEstimator),
 	}
 }
 
 func (c *Clusterizer) Clusterize(ctx context.Context, data []float64) ([]float64, []int) {
+	c.clusterer.Init(ctx, data)
 	return c.optimize(ctx, data)
 }
 
@@ -29,33 +28,74 @@ func (c *Clusterizer) optimize(ctx context.Context, data []float64) ([]float64, 
 	if len(data) == 1 {
 		ctx.Logger().Debug("skipping optimization for number of clusters")
 
-		return c.clusterer.Cluster(ctx, data)
+		return c.clusterer.Cluster(ctx)
 	}
+
+	optimizationParams := c.clusterer.GetOptimizationParams(ctx)
 
 	var bestCentroids []float64
 	var bestLabels []int
-	var bestClustersNum int
-	bestSilhouetteScore := math.Inf(-1)
-	maxClusters := len(data) / 2
-	for clustersNum := 1; clustersNum <= maxClusters; clustersNum++ {
-		clusterer := kmeans.New(clustersNum, 100, kmeans.RandomCentroidsIniter)
+	var bestParams []int
+	bestScore := math.Inf(-1)
 
-		centroids, labels := clusterer.Cluster(ctx, data)
-		silhouetteScore := c.qualityEstimator(data, labels)
-
-		fmt.Println("silhouette score for", clustersNum, "clusters:", silhouetteScore)
-
-		if silhouetteScore > bestSilhouetteScore {
-			bestSilhouetteScore = silhouetteScore
-			bestCentroids = centroids
-			bestLabels = labels
-			bestClustersNum = clustersNum
+	// TODO: parallelize
+	for _, params := range generateOptimizationParamsVariations(optimizationParams, c.clusterer.ValidateOptimizationParams) {
+		if err := c.clusterer.SetOptimizationParams(ctx, params); err != nil {
+			ctx.Logger().Errorf("failed to set optimization params: %v", err)
+			continue
 		}
 
-		ctx.Logger().Tracef("silhouette score for %d clusters: %f", clustersNum, silhouetteScore)
+		centroids, labels := c.clusterer.Cluster(ctx)
+		score := c.qualityEstimator(data, labels)
+
+		fmt.Printf("quality score for %v params: %.2f\n", params, score)
+
+		if score > bestScore {
+			bestScore = score
+			bestCentroids = centroids
+			bestLabels = labels
+			bestParams = params
+		}
+
+		ctx.Logger().Tracef("quality score for %v params: %.2f", params, score)
 	}
 
-	ctx.Logger().Debugf("found optimal number of clusters: %d", bestClustersNum)
+	ctx.Logger().Debugf("found optimal score for %v params: %.2f", bestParams, bestScore)
+
+	fmt.Printf("found optimal score for %v params: %.2f\n", bestParams, bestScore)
 
 	return bestCentroids, bestLabels
+}
+
+func generateOptimizationParamsVariations(startingParams []int, validator func(params []int) error) [][]int {
+	var variations [][]int
+
+	// create a copy of startingParams to avoid modifying the original slice
+	params := make([]int, len(startingParams))
+	copy(params, startingParams)
+
+	var generate func(int)
+	generate = func(idx int) {
+		if idx == len(params) {
+			if err := validator(params); err == nil {
+				// make a copy of params to avoid modifying the slice later
+				validParams := make([]int, len(params))
+				copy(validParams, params)
+				variations = append(variations, validParams)
+			}
+			return
+		}
+
+		for {
+			generate(idx + 1)
+			params[idx]++
+			if err := validator(params); err != nil {
+				params[idx] = startingParams[idx]
+				break
+			}
+		}
+	}
+
+	generate(0)
+	return variations
 }

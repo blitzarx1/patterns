@@ -66,7 +66,7 @@ func (n *Neighbourhood) Clusterize(ctx context.Context) {
 	})
 
 	fmt.Printf("computing kmeans for neighbourhood with center: %s\n", n.Center)
-	centroids, labels := cluster.New(cluster.Silhouette).Clusterize(ctx, clusterInput)
+	centroids, labels := cluster.New(cluster.KMeans, cluster.Silhouette).Clusterize(ctx, clusterInput)
 	for label, centroid := range centroids {
 		entries := make([]*TextEntry, 0, len(labels))
 

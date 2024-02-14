@@ -1,35 +1,64 @@
 package kmeans
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/boson-research/patterns/internal/context"
 )
 
-func New(clustersNum int, maxIterations int, centroidsIniter CentroidsIniterType) *KMeans {
-	return &KMeans{
-		clustersNum:     clustersNum,
-		maxIterations:   maxIterations,
-		centroidsIniter: getCentroidsIniter(centroidsIniter),
-	}
-}
-
 type KMeans struct {
-	clustersNum     int
-	maxIterations   int
-	centroidsIniter centroidsIniter
+	clustersNum         int
+	maxIterations       int
+	clustersNumBounds   [2]int
+	centroidsIniterType CentroidsIniterType
+	data                []float64
 }
 
-func (k *KMeans) Cluster(ctx context.Context, data []float64) ([]float64, []int) {
+func (k *KMeans) Init(ctx context.Context, data []float64) {
+	k.data = data
+	k.centroidsIniterType = RandomCentroidsIniter
+	k.clustersNumBounds = [2]int{1, len(data) / 2}
+	k.maxIterations = 100
+}
+
+func (k *KMeans) GetOptimizationParams(ctx context.Context) []int {
+	return []int{k.clustersNum, int(k.centroidsIniterType)}
+}
+
+func (k *KMeans) SetOptimizationParams(ctx context.Context, params []int) error {
+	if err := k.ValidateOptimizationParams(params); err != nil {
+		return err
+	}
+
+	k.clustersNum = params[0]
+	k.maxIterations = params[1]
+
+	return nil
+}
+
+func (k *KMeans) ValidateOptimizationParams(params []int) error {
+	if params[0] < k.clustersNumBounds[0] || params[0] > k.clustersNumBounds[1] {
+		return fmt.Errorf("number of clusters must be between %d and %d", k.clustersNumBounds[0], k.clustersNumBounds[1])
+	}
+
+	if CentroidsIniterType(params[1]).String() == "unknown" {
+		return fmt.Errorf("unknown centroids initer type")
+	}
+
+	return nil
+}
+
+func (k *KMeans) Cluster(ctx context.Context) ([]float64, []int) {
 	ctx, span := ctx.StartSpan("KMeans")
 	defer span.End()
 
-	ctx.Logger().Tracef("clustering %d points into %d clusters", len(data), k.clustersNum)
+	ctx.Logger().Tracef("clustering %d points into %d clusters", len(k.data), k.clustersNum)
 
-	centroids := k.centroidsIniter(data, k.clustersNum)
+	centroids := getCentroidsIniter(k.centroidsIniterType)(k.data, k.clustersNum)
 	for i := 0; i < k.maxIterations; i++ {
-		labels := assignPointsToCentroids(data, centroids)
-		newCentroids := updateCentroids(data, labels, k.clustersNum)
+		labels := assignPointsToCentroids(k.data, centroids)
+		newCentroids := updateCentroids(k.data, labels, k.clustersNum)
 		if checkConvergence(centroids, newCentroids, 1e-5) {
 			ctx.Logger().Tracef("converged after %d iterations", i+1)
 
@@ -39,7 +68,7 @@ func (k *KMeans) Cluster(ctx context.Context, data []float64) ([]float64, []int)
 		centroids = newCentroids
 	}
 
-	return centroids, assignPointsToCentroids(data, centroids)
+	return centroids, assignPointsToCentroids(k.data, centroids)
 }
 
 // assignPointsToCentroids assigns each data point to the nearest centroid and returns the labels.
@@ -83,4 +112,3 @@ func checkConvergence(oldCentroids, newCentroids []float64, threshold float64) b
 	}
 	return true
 }
-
