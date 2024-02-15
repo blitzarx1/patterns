@@ -1,15 +1,16 @@
 package main
 
 import (
-	pkgContext "context"
+	"context"
 	"log"
 	"os"
 
 	"github.com/boson-research/patterns/internal"
 	"github.com/boson-research/patterns/internal/alphabet"
-	"github.com/boson-research/patterns/internal/context"
 	"github.com/boson-research/patterns/internal/processor"
 	"github.com/boson-research/patterns/internal/telemetry"
+	"github.com/boson-research/patterns/internal/telemetry/logger"
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -18,7 +19,8 @@ const (
 )
 
 func main() {
-	ctx, closer, err := telemetry.Init(context.New(pkgContext.Background()), telemetry.Config{
+	ctx := context.Background()
+	l, closer, err := telemetry.Init(ctx, telemetry.Config{
 		Name:               "patterns",
 		Version:            internal.MustGetGitVersion(),
 		JaegerOTLPEndpoint: "jaeger:4318",
@@ -28,22 +30,26 @@ func main() {
 	}
 	defer closer(ctx)
 
-	ctx, span := ctx.StartSpan("main")
+	ctx = logger.InjectIntoContext(ctx, l)
+
+	ctx, span := otel.Tracer("").Start(ctx, "main")
 	defer span.End()
+
+	logger.MustFromContext(ctx).Info("starting")
 
 	alphabetRaw, err := os.ReadFile(alphabetPath)
 	if err != nil {
 		log.Fatalf("failed to read alphabet: %s", err)
 	}
 
-	ctx.Logger().Info("alphabet loaded")
+	logger.MustFromContext(ctx).Info("alphabet loaded")
 
 	text, err := os.ReadFile(textPath)
 	if err != nil {
 		log.Fatalf("failed to read text: %s", err)
 	}
 
-	ctx.Logger().Info("text loaded")
+	logger.MustFromContext(ctx).Info("text loaded")
 
 	p := processor.New(ctx)
 	p.AnalyzeAlphabet(ctx, alphabet.Alphabet(alphabetRaw))

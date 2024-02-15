@@ -1,10 +1,11 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"math"
 
-	"github.com/boson-research/patterns/internal/context"
+	"github.com/boson-research/patterns/internal/telemetry/logger"
 )
 
 type Clusterizer struct {
@@ -26,7 +27,7 @@ func (c *Clusterizer) Clusterize(ctx context.Context, data []float64) ([]float64
 
 func (c *Clusterizer) optimize(ctx context.Context, data []float64) ([]float64, []int) {
 	if len(data) == 1 {
-		ctx.Logger().Debug("skipping optimization for number of clusters")
+		logger.MustFromContext(ctx).Debug("skipping optimization for number of clusters")
 
 		return c.clusterer.Cluster(ctx)
 	}
@@ -41,7 +42,7 @@ func (c *Clusterizer) optimize(ctx context.Context, data []float64) ([]float64, 
 	// TODO: parallelize
 	for _, params := range generateOptimizationParamsVariations(optimizationParams, c.clusterer.ValidateOptimizationParams) {
 		if err := c.clusterer.SetOptimizationParams(ctx, params); err != nil {
-			ctx.Logger().Errorf("failed to set optimization params: %v", err)
+			logger.MustFromContext(ctx).Errorf("failed to set optimization params: %v", err)
 			continue
 		}
 
@@ -57,10 +58,10 @@ func (c *Clusterizer) optimize(ctx context.Context, data []float64) ([]float64, 
 			bestParams = params
 		}
 
-		ctx.Logger().Tracef("quality score for %v params: %.2f", params, score)
+		logger.MustFromContext(ctx).Tracef("quality score for %v params: %.2f", params, score)
 	}
 
-	ctx.Logger().Debugf("found optimal score for %v params: %.2f", bestParams, bestScore)
+	logger.MustFromContext(ctx).Debugf("found optimal score for %v params: %.2f", bestParams, bestScore)
 
 	fmt.Printf("found optimal score for %v params: %.2f\n", bestParams, bestScore)
 

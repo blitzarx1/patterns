@@ -1,13 +1,13 @@
 package telemetry
 
 import (
-	pkgContext "context"
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/boson-research/patterns/internal/context"
 	"github.com/boson-research/patterns/internal/telemetry/logger"
 	"github.com/boson-research/patterns/internal/telemetry/tracing"
+	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -16,9 +16,9 @@ type Config struct {
 	JaegerOTLPEndpoint string
 }
 
-func Init(ctx context.Context, cfg Config) (context.Context, func(ctx pkgContext.Context) error, error) {
+func Init(ctx context.Context, cfg Config) (*logrus.Logger, func(ctx context.Context) error, error) {
 	if cfg.JaegerOTLPEndpoint == "" {
-		return ctx, func(_ pkgContext.Context) error {
+		return nil, func(_ context.Context) error {
 			return nil
 		}, nil
 	}
@@ -28,5 +28,5 @@ func Init(ctx context.Context, cfg Config) (context.Context, func(ctx pkgContext
 		return nil, nil, fmt.Errorf("initialize tracing: %w", err)
 	}
 
-	return logger.MustCreate(ctx), closer, nil
+	return logger.MustCreate(), closer, nil
 }

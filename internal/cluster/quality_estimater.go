@@ -1,6 +1,9 @@
 package cluster
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 type QualityEstimationMethod int
 
@@ -26,7 +29,7 @@ func getQualityEstimator(t QualityEstimationMethod) qualityEstimator {
 	case Silhouette:
 		return calculateSilhouette
 	case Elbow:
-		panic("elbow method not implemented yet")
+		return calcElbow
 	}
 	return nil
 }
@@ -81,9 +84,16 @@ func calculateSilhouette(data []float64, labels []int) float64 {
 
 		// calculate silhouette score for point i
 		si := (b - a) / math.Max(a, b)
+
+		fmt.Printf("si: for point %.2f from cluster %.2f : %.2f\n", point, clusters[labels[i]], si)
+
 		totalScore += si
 	}
 
 	// return average silhouette score
 	return totalScore / float64(len(data))
+}
+
+func calcElbow(data []float64, labels []int) float64 {
+	return 0.0
 }

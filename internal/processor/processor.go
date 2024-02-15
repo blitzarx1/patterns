@@ -1,13 +1,19 @@
 package processor
 
 import (
+	// "fmt"
+	// "strings"
+
+	"context"
+	"encoding/csv"
 	"fmt"
-	"strings"
+	"os"
 
 	"github.com/boson-research/patterns/internal/alphabet"
-	"github.com/boson-research/patterns/internal/context"
 	"github.com/boson-research/patterns/internal/neighbourhood"
-	"github.com/samber/lo"
+	"github.com/boson-research/patterns/internal/telemetry/logger"
+	"go.opentelemetry.io/otel"
+	// "github.com/samber/lo"
 )
 
 type Processor struct {
@@ -19,48 +25,69 @@ func New(ctx context.Context) *Processor {
 }
 
 func (p *Processor) AnalyzeAlphabet(ctx context.Context, a alphabet.Alphabet) {
-	ctx, span := ctx.StartSpan("AnalyzeAlphabet")
+	ctx, span := otel.Tracer("").Start(ctx, "AnalyzeAlphabet")
 	defer span.End()
 
-	ctx.Logger().Debug("analyzing alphabet")
+	logger.MustFromContext(ctx).Debug("analyzing alphabet")
 
 	centers := p.extractCenters(ctx, a)
 	p.neighbourhoods = p.extractNeighbourhoods(ctx, a, centers)
 
-	ctx.Logger().Debugf("alphabet analyzed\n%s", p.neighbourhoods)
+	logger.MustFromContext(ctx).Debugf("alphabet analyzed\n%s", p.neighbourhoods)
 }
 
 func (p *Processor) AnalyzeText(ctx context.Context, text []byte) {
-	ctx, span := ctx.StartSpan("AnalyzeText")
+	ctx, span := otel.Tracer("").Start(ctx, "AnalyzeText")
 	defer span.End()
 
-	ctx.Logger().Debug("analyzing text")
+	logger.MustFromContext(ctx).Debug("analyzing text")
 
 	p.findTextEntries(ctx, text)
-	p.clusterize(ctx)
+	p.exportNeighbourhoods()
+	// p.clusterize(ctx)
 
-	ctx.Logger().Info("text analyzed")
+	// logger.MustFromContext(ctx).Info("text analyzed")
 
-	// print resulting neighbourhoods
-	fmt.Print(
-		strings.Join(
-			lo.Map(
-				lo.Filter(
-					p.neighbourhoods,
-					func(n *neighbourhood.Neighbourhood, _ int) bool { return n.TextEntries != nil },
-				),
-				func(n *neighbourhood.Neighbourhood, _ int) string { return n.String() },
-			),
-			"\n",
-		),
-	)
+	// // print resulting neighbourhoods
+	// fmt.Print(
+	// 	strings.Join(
+	// 		lo.Map(
+	// 			lo.Filter(
+	// 				p.neighbourhoods,
+	// 				func(n *neighbourhood.Neighbourhood, _ int) bool { return n.TextEntries != nil },
+	// 			),
+	// 			func(n *neighbourhood.Neighbourhood, _ int) string { return n.String() },
+	// 		),
+	// 		"\n",
+	// 	),
+	// )
+}
+
+func (p *Processor) exportNeighbourhoods() {
+	for _, n := range p.neighbourhoods {
+		if len(n.TextEntries.Locations()) == 0 {
+			continue
+		}
+
+		// write csv to file
+		file, err := os.Create(fmt.Sprintf("output/%s.csv", n.Center.String()))
+		if err != nil {
+			panic(err)
+		}
+
+		w := csv.NewWriter(file)
+		defer w.Flush()
+		for i, loc := range n.TextEntries.Locations() {
+			w.Write([]string{fmt.Sprintf("%d", loc), n.TextEntries.Patterns()[i].String()})
+		}
+	}
 }
 
 func (p *Processor) clusterize(ctx context.Context) {
-	ctx, span := ctx.StartSpan("clusterize")
+	ctx, span := otel.Tracer("").Start(ctx, "clusterize")
 	defer span.End()
 
-	ctx.Logger().Debug("clusterizing")
+	logger.MustFromContext(ctx).Debug("clusterizing")
 
 	for _, n := range p.neighbourhoods {
 		if len(n.TextEntries.Locations()) == 0 {
@@ -72,10 +99,10 @@ func (p *Processor) clusterize(ctx context.Context) {
 }
 
 func (p *Processor) findTextEntries(ctx context.Context, text []byte) {
-	ctx, span := ctx.StartSpan("findTextEntries")
+	ctx, span := otel.Tracer("").Start(ctx, "findTextEntries")
 	defer span.End()
 
-	ctx.Logger().Debug("finding text entries")
+	logger.MustFromContext(ctx).Debug("finding text entries")
 
 	for _, n := range p.neighbourhoods {
 		n.FindTextEntries(ctx, text)
@@ -83,10 +110,10 @@ func (p *Processor) findTextEntries(ctx context.Context, text []byte) {
 }
 
 func (p *Processor) extractCenters(ctx context.Context, a alphabet.Alphabet) []*alphabet.Pattern {
-	ctx, span := ctx.StartSpan("extractCenters")
+	ctx, span := otel.Tracer("").Start(ctx, "extractCenters")
 	defer span.End()
 
-	ctx.Logger().Debug("extracting centers")
+	logger.MustFromContext(ctx).Debug("extracting centers")
 
 	centers := make([]*alphabet.Pattern, 0, len(a))
 	for _, s1 := range a {
@@ -95,16 +122,16 @@ func (p *Processor) extractCenters(ctx context.Context, a alphabet.Alphabet) []*
 		}
 	}
 
-	ctx.Logger().Debugf("extracted centers: %v", centers)
+	logger.MustFromContext(ctx).Debugf("extracted centers: %v", centers)
 
 	return centers
 }
 
 func (p *Processor) extractNeighbourhoods(ctx context.Context, a alphabet.Alphabet, c []*alphabet.Pattern) []*neighbourhood.Neighbourhood {
-	ctx, span := ctx.StartSpan("extractNeighbourhoods")
+	ctx, span := otel.Tracer("").Start(ctx, "extractNeighbourhoods")
 	defer span.End()
 
-	ctx.Logger().Debug("extracting neighbourhoods")
+	logger.MustFromContext(ctx).Debug("extracting neighbourhoods")
 
 	neighbourhoods := make([]*neighbourhood.Neighbourhood, 0, len(c))
 	for _, center := range c {
@@ -116,7 +143,7 @@ func (p *Processor) extractNeighbourhoods(ctx context.Context, a alphabet.Alphab
 		neighbourhoods = append(neighbourhoods, neighbourhood.New(center).WithElements(elements))
 	}
 
-	ctx.Logger().Debugf("extracted neighbourhoods: %v", neighbourhoods)
+	logger.MustFromContext(ctx).Debugf("extracted neighbourhoods: %v", neighbourhoods)
 
 	return neighbourhoods
 }

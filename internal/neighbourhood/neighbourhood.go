@@ -1,14 +1,16 @@
 package neighbourhood
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/boson-research/patterns/internal/alphabet"
 	"github.com/boson-research/patterns/internal/cluster"
-	"github.com/boson-research/patterns/internal/context"
+	"github.com/boson-research/patterns/internal/telemetry/logger"
 	"github.com/samber/lo"
+	"go.opentelemetry.io/otel"
 )
 
 type Neighbourhood struct {
@@ -30,15 +32,15 @@ func (n *Neighbourhood) WithElements(elements []*alphabet.Pattern) *Neighbourhoo
 }
 
 func (n *Neighbourhood) FindTextEntries(ctx context.Context, text []byte) {
-	ctx, span := ctx.StartSpan("FindTextEntries")
+	ctx, span := otel.Tracer("").Start(ctx, "FindTextEntries")
 	defer span.End()
 
-	ctx.Logger().Debugf("finding entries in text for %s", n)
+	logger.MustFromContext(ctx).Debugf("finding entries in text for %s", n)
 
 	for it := range text {
 		for _, pat := range n.Elements {
 			if checkPattern(pat, text, it) {
-				ctx.Logger().Tracef("adding entry %s at index %d", pat, it)
+				logger.MustFromContext(ctx).Tracef("adding entry %s at index %d", pat, it)
 
 				if n.TextEntries == nil {
 					n.TextEntries = NewTextEntries()
@@ -51,10 +53,10 @@ func (n *Neighbourhood) FindTextEntries(ctx context.Context, text []byte) {
 }
 
 func (n *Neighbourhood) Clusterize(ctx context.Context) {
-	ctx, span := ctx.StartSpan("Clusterize")
+	ctx, span := otel.Tracer("").Start(ctx, "Clusterize")
 	defer span.End()
 
-	ctx.Logger().Debugf("clusterizing %s", n)
+	logger.MustFromContext(ctx).Debugf("clusterizing %s", n)
 
 	entryByLoc := make(map[int]*TextEntry, len(n.TextEntries.Locations()))
 	for i, loc := range n.TextEntries.Locations() {

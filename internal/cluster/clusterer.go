@@ -1,6 +1,6 @@
 package cluster
 
-import "github.com/boson-research/patterns/internal/context"
+import "context"
 
 type Clusterer interface {
 	Init(ctx context.Context, data []float64)

@@ -1,10 +1,12 @@
 package kmeans
 
 import (
+	"context"
 	"fmt"
 	"math"
 
-	"github.com/boson-research/patterns/internal/context"
+	"github.com/boson-research/patterns/internal/telemetry/logger"
+	"go.opentelemetry.io/otel"
 )
 
 type KMeans struct {
@@ -50,17 +52,17 @@ func (k *KMeans) ValidateOptimizationParams(params []int) error {
 }
 
 func (k *KMeans) Cluster(ctx context.Context) ([]float64, []int) {
-	ctx, span := ctx.StartSpan("KMeans")
+	ctx, span := otel.Tracer("").Start(ctx, "KMeans")
 	defer span.End()
 
-	ctx.Logger().Tracef("clustering %d points into %d clusters", len(k.data), k.clustersNum)
+	logger.MustFromContext(ctx).Tracef("clustering %d points into %d clusters", len(k.data), k.clustersNum)
 
 	centroids := getCentroidsIniter(k.centroidsIniterType)(k.data, k.clustersNum)
 	for i := 0; i < k.maxIterations; i++ {
 		labels := assignPointsToCentroids(k.data, centroids)
 		newCentroids := updateCentroids(k.data, labels, k.clustersNum)
 		if checkConvergence(centroids, newCentroids, 1e-5) {
-			ctx.Logger().Tracef("converged after %d iterations", i+1)
+			logger.MustFromContext(ctx).Tracef("converged after %d iterations", i+1)
 
 			return newCentroids, labels
 		}

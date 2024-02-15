@@ -3,7 +3,6 @@ package logger
 import (
 	"os"
 
-	"github.com/boson-research/patterns/internal/context"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -14,7 +13,7 @@ const (
 	logLevelEnv = "LOG_LEVEL"
 )
 
-func MustCreate(ctx context.Context) context.Context {
+func MustCreate() *logrus.Logger {
 	logLevelRaw := os.Getenv(logLevelEnv)
 
 	logLevel, err := logrus.ParseLevel(logLevelRaw)
@@ -27,7 +26,7 @@ func MustCreate(ctx context.Context) context.Context {
 	l.SetLevel(logLevel)
 	l.AddHook(logrusTraceHook{})
 
-	return ctx.WithLogger(l)
+	return l
 }
 
 // logrusTraceHook is an implementation of logrus.Hook that:
